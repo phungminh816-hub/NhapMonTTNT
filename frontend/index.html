@@ -24,14 +24,19 @@
         </div>
 
         <div class="section">
-            <h3>Mô phỏng traffic</h3>
-            <p class="hint">Click vào đoạn đường để đổi trạng thái thủ công:<br>
-                <span class="dot dot-1"></span> Thông thoáng &nbsp;
-                <span class="dot dot-2"></span> Chậm &nbsp;
-                <span class="dot dot-5"></span> Tắc
-            </p>
-            <button id="random-btn">Random toàn bộ</button>
-            <button id="reset-traffic-btn">Đặt lại thông thoáng</button>
+            <h3>Mô phỏng điều kiện đường</h3>
+            <p class="hint">Click vào đoạn đường để chuyển trạng thái theo chu kỳ:</p>
+            <div class="legend">
+                <div><span class="dot dot-1"></span> Thông thoáng</div>
+                <div><span class="dot dot-2"></span> Chậm</div>
+                <div><span class="dot dot-5"></span> Tắc</div>
+                <div><span class="dot dot-flooded"></span> Ngập lụt (rất chậm)</div>
+                <div><span class="dot dot-closed"></span> Cấm đường (không đi)</div>
+                <div><span class="dot dot-oneway"></span> 1 chiều (mũi tên ▶)</div>
+            </div>
+            <button id="random-btn">Random traffic</button>
+            <button id="demo-special-btn">Demo điều kiện đặc biệt</button>
+            <button id="reset-traffic-btn">Đặt lại tất cả</button>
             <button id="auto-sim-btn">Bật mô phỏng auto</button>
             <p class="hint" id="auto-sim-status"></p>
         </div>

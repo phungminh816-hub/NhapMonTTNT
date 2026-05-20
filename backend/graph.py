@@ -4,6 +4,7 @@ import heapq
 import database
 
 SPEED_KMH = 30.0  # tốc độ giả định để ước tính thời gian
+FLOOD_PENALTY = 8.0  # hệ số phạt thêm cho cạnh ngập lụt (đi được nhưng rất chậm)
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -20,11 +21,17 @@ def haversine_km(lat1, lon1, lat2, lon2):
 
 
 def load_graph():
-    """Tải toàn bộ graph từ DB vào memory.
+    """Tải toàn bộ graph từ DB vào memory, xử lý cả road_status và is_oneway.
+
+    - road_status='closed': bỏ qua cạnh hoàn toàn (không thêm vào adj).
+    - road_status='flooded': nhân thêm FLOOD_PENALTY vào trọng số (đi được nhưng chậm).
+    - is_oneway=0: thêm cả 2 chiều (a→b và b→a).
+    - is_oneway=1: chỉ thêm chiều a→b (theo node sorted).
+    - is_oneway=2: chỉ thêm chiều b→a.
 
     Trả về:
       nodes: dict[id] -> (lat, lon)
-      adj:   dict[id] -> list[(neighbor_id, distance_km, traffic_level, street_name)]
+      adj:   dict[id] -> list[(neighbor_id, distance_km, effective_traffic, street_name)]
     """
     nodes = {}
     for n in database.get_all_nodes():
@@ -36,8 +43,22 @@ def load_graph():
         d = e["distance_km"]
         t = e["traffic_level"]
         s = e.get("street_name")
-        adj[a].append((b, d, t, s))
-        adj[b].append((a, d, t, s))
+        status = e.get("road_status") or "normal"
+        oneway = e.get("is_oneway") or 0
+
+        if status == "closed":
+            continue  # cạnh bị cấm hoàn toàn
+
+        # Bake flood penalty vào trọng số traffic. astar.weight = dist * traffic * penalty
+        eff_t = t * FLOOD_PENALTY if status == "flooded" else t
+
+        if oneway == 0:
+            adj[a].append((b, d, eff_t, s))
+            adj[b].append((a, d, eff_t, s))
+        elif oneway == 1:
+            adj[a].append((b, d, eff_t, s))
+        elif oneway == 2:
+            adj[b].append((a, d, eff_t, s))
     return nodes, adj
 
 
