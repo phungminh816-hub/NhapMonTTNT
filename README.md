@@ -187,30 +187,43 @@ Phân bố này phản ánh tình trạng giao thông trung bình giờ cao đi�
 
 ### Yêu cầu
 
-- Python 3.10+ (đã test trên 3.14)
-- pip
-- Trình duyệt web
+- Git
+- Python 3.10+ (đã test trên 3.14) — cài kèm `pip`
+- Trình duyệt web bất kỳ
 
-### Cài đặt
+### Bước 1 — Clone repo
+
+```bash
+git clone https://github.com/vietanhx9/NhapMonTTNT.git
+cd NhapMonTTNT
+```
+
+> File `graph.db` đã đi kèm repo, không cần build lại từ OSM.
+
+### Bước 2 — Cài thư viện Python
 
 ```bash
 pip install flask flask-cors requests
 ```
 
-> `sqlite3` đã có sẵn trong thư viện chuẩn của Python.
+> `sqlite3` đã có sẵn trong thư viện chuẩn của Python, không cần cài thêm.
 
-### Chạy backend
+### Bước 3 — Chạy backend
 
 ```bash
 cd backend
 python app.py
 ```
 
-Server chạy ở `http://127.0.0.1:5000`.
+Server Flask sẽ chạy ở `http://127.0.0.1:5000`. Để cửa sổ terminal này mở.
 
-### Mở frontend
+### Bước 4 — Mở frontend
 
-Mở thẳng file `frontend/index.html` bằng trình duyệt (double-click), hoặc dùng Live Server của VS Code. Không cần build.
+Mở **file mới** (không tắt terminal backend) → mở `frontend/index.html` bằng trình duyệt:
+- **Cách 1**: double-click trực tiếp file `frontend/index.html`.
+- **Cách 2 (khuyến nghị nếu dùng VS Code)**: cài extension *Live Server* → chuột phải vào `index.html` → *Open with Live Server*.
+
+Bản đồ sẽ tự load. Click 2 điểm trên bản đồ rồi bấm **Tìm 3 đường đi** để thử.
 
 ### (Tuỳ chọn) Tải lại dữ liệu OSM
 
