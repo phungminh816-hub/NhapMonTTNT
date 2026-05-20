@@ -53,6 +53,8 @@ def build_graph(data):
 
     for way in data.get("elements", []):
         geom = way.get("geometry") or []
+        tags = way.get("tags") or {}
+        street_name = tags.get("name")
         for i, pt in enumerate(geom):
             curr_id = node_id(pt["lat"], pt["lon"])
             database.insert_node(conn, curr_id, pt["lat"], pt["lon"])
@@ -62,7 +64,7 @@ def build_graph(data):
                 prev = geom[i - 1]
                 prev_id = node_id(prev["lat"], prev["lon"])
                 dist = haversine_km(prev["lat"], prev["lon"], pt["lat"], pt["lon"])
-                database.insert_edge(conn, prev_id, curr_id, dist)
+                database.insert_edge(conn, prev_id, curr_id, dist, street_name)
                 edge_count += 1
 
     conn.commit()

@@ -25,6 +25,36 @@ function setStatus(msg) {
     document.getElementById("status").innerText = msg;
 }
 
+// Reverse geocode toạ độ -> địa chỉ ngắn gọn qua Nominatim (OSM).
+// Có rate limit 1 req/s, đủ thoải mái với user click thủ công.
+function reverseGeocode(lat, lon) {
+    const url =
+        "https://nominatim.openstreetmap.org/reverse" +
+        `?lat=${lat}&lon=${lon}&format=json&zoom=18&addressdetails=1` +
+        "&accept-language=vi";
+    return fetch(url, { headers: { "Accept": "application/json" } })
+        .then((r) => r.json())
+        .then((data) => {
+            const a = data.address || {};
+            const road = a.road || a.pedestrian || a.residential || a.path;
+            const suburb = a.suburb || a.quarter || a.neighbourhood;
+            if (road && suburb) return `${road}, ${suburb}`;
+            if (road) return road;
+            if (data.display_name) return data.display_name.split(",").slice(0, 2).join(",");
+            return null;
+        })
+        .catch(() => null);
+}
+
+function fillPointInfo(elemId, lat, lon) {
+    const el = document.getElementById(elemId);
+    const coordTxt = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+    el.innerText = "đang xác định địa chỉ...";
+    reverseGeocode(lat, lon).then((addr) => {
+        el.innerText = addr || coordTxt;
+    });
+}
+
 // Click bản đồ để chọn điểm đầu / điểm cuối
 APP.map.on("click", (e) => {
     const { lat, lng } = e.latlng;
@@ -33,15 +63,13 @@ APP.map.on("click", (e) => {
         APP.startMarker = L.marker([lat, lng], { title: "Điểm đầu" })
             .addTo(APP.map)
             .bindPopup("Điểm đầu");
-        document.getElementById("start-info").innerText =
-            `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        fillPointInfo("start-info", lat, lng);
     } else if (!APP.endCoord) {
         APP.endCoord = { lat, lon: lng };
         APP.endMarker = L.marker([lat, lng], { title: "Điểm cuối" })
             .addTo(APP.map)
             .bindPopup("Điểm cuối");
-        document.getElementById("end-info").innerText =
-            `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        fillPointInfo("end-info", lat, lng);
         document.getElementById("find-btn").disabled = false;
     }
 });

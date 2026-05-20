@@ -33,10 +33,21 @@ function renderResults(paths) {
     paths.forEach((p, idx) => {
         const div = document.createElement("div");
         div.className = `result-item path-${idx}`;
+        const streets = p.streets || [];
+        const MAX_STREETS = 4;
+        let streetsHtml = "";
+        if (streets.length) {
+            const shown = streets.slice(0, MAX_STREETS).join(" → ");
+            const more = streets.length > MAX_STREETS
+                ? ` … (+${streets.length - MAX_STREETS} tuyến)`
+                : "";
+            streetsHtml = `<div class="streets">qua: ${shown}${more}</div>`;
+        }
         div.innerHTML = `
             <span class="badge">${p.rank}</span>
             <strong>Đường ${p.rank}</strong><br>
             ${p.distance_km} km &middot; ~${p.estimated_minutes} phút
+            ${streetsHtml}
         `;
         div.addEventListener("click", () => {
             document.querySelectorAll(".result-item").forEach((el) =>

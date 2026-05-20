@@ -24,7 +24,7 @@ def load_graph():
 
     Trả về:
       nodes: dict[id] -> (lat, lon)
-      adj:   dict[id] -> list[(neighbor_id, distance_km, traffic_level)]
+      adj:   dict[id] -> list[(neighbor_id, distance_km, traffic_level, street_name)]
     """
     nodes = {}
     for n in database.get_all_nodes():
@@ -35,8 +35,9 @@ def load_graph():
         a, b = e["node1_id"], e["node2_id"]
         d = e["distance_km"]
         t = e["traffic_level"]
-        adj[a].append((b, d, t))
-        adj[b].append((a, d, t))
+        s = e.get("street_name")
+        adj[a].append((b, d, t, s))
+        adj[b].append((a, d, t, s))
     return nodes, adj
 
 
@@ -87,7 +88,7 @@ def astar(nodes, adj, start, goal, edge_penalties=None):
         if g > g_score.get(current, float("inf")):
             continue
 
-        for nbr, dist, traffic in adj.get(current, []):
+        for nbr, dist, traffic, _ in adj.get(current, []):
             edge_key = tuple(sorted((current, nbr)))
             penalty = edge_penalties.get(edge_key, 1.0)
             weight = dist * traffic * penalty
@@ -105,7 +106,7 @@ def path_cost(adj, path):
     total = 0.0
     for i in range(len(path) - 1):
         a, b = path[i], path[i + 1]
-        for nbr, dist, traffic in adj[a]:
+        for nbr, dist, traffic, _ in adj[a]:
             if nbr == b:
                 total += dist * traffic
                 break
@@ -117,11 +118,28 @@ def path_distance_km(adj, path):
     total = 0.0
     for i in range(len(path) - 1):
         a, b = path[i], path[i + 1]
-        for nbr, dist, traffic in adj[a]:
+        for nbr, dist, traffic, _ in adj[a]:
             if nbr == b:
                 total += dist
                 break
     return total
+
+
+def path_streets(adj, path):
+    """Tính list tên đường unique theo thứ tự xuất hiện trên path.
+
+    Bỏ qua các cạnh không có tên (street_name = None).
+    Gộp các cạnh liên tiếp cùng tên thành 1 entry.
+    """
+    streets = []
+    for i in range(len(path) - 1):
+        a, b = path[i], path[i + 1]
+        for nbr, _, _, name in adj[a]:
+            if nbr == b:
+                if name and (not streets or streets[-1] != name):
+                    streets.append(name)
+                break
+    return streets
 
 
 def penalty_k_paths(nodes, adj, start, goal, K=3, penalty=3.0):
@@ -175,5 +193,6 @@ def find_paths(start_lat, start_lon, end_lat, end_lon, K=3):
             "nodes": p,
             "distance_km": round(dist, 3),
             "estimated_minutes": round(estimated_minutes(dist), 2),
+            "streets": path_streets(adj, p),
         })
     return result

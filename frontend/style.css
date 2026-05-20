@@ -112,6 +112,13 @@ button#reset-btn {
 .result-item.path-1 .badge { background: #dc2626; }
 .result-item.path-2 .badge { background: #16a34a; }
 
+.result-item .streets {
+    margin-top: 6px;
+    font-size: 11px;
+    color: #555;
+    line-height: 1.4;
+}
+
 .dot {
     display: inline-block;
     width: 12px;

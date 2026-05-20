@@ -27,6 +27,7 @@ def init_schema():
             node2_id TEXT NOT NULL,
             distance_km REAL NOT NULL,
             traffic_level INTEGER NOT NULL DEFAULT 1,
+            street_name TEXT,
             PRIMARY KEY (node1_id, node2_id),
             FOREIGN KEY (node1_id) REFERENCES nodes(id),
             FOREIGN KEY (node2_id) REFERENCES nodes(id)
@@ -45,11 +46,11 @@ def insert_node(conn, node_id, lat, lon):
     )
 
 
-def insert_edge(conn, node1_id, node2_id, distance_km):
+def insert_edge(conn, node1_id, node2_id, distance_km, street_name=None):
     a, b = sorted([node1_id, node2_id])
     conn.execute(
-        "INSERT OR IGNORE INTO edges (node1_id, node2_id, distance_km, traffic_level) VALUES (?, ?, ?, 1)",
-        (a, b, distance_km),
+        "INSERT OR IGNORE INTO edges (node1_id, node2_id, distance_km, traffic_level, street_name) VALUES (?, ?, ?, 1, ?)",
+        (a, b, distance_km, street_name),
     )
 
 
@@ -63,7 +64,7 @@ def get_all_nodes():
 def get_all_edges():
     conn = get_connection()
     rows = conn.execute(
-        "SELECT node1_id, node2_id, distance_km, traffic_level FROM edges"
+        "SELECT node1_id, node2_id, distance_km, traffic_level, street_name FROM edges"
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
