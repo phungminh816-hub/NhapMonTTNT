@@ -147,7 +147,6 @@ for k in range(K):
 - Lần 2, 3: các cạnh đã đi bị nhân ×3 trọng số → A\* bị "đẩy" sang đường khác.
 - Hệ số phạt **tích luỹ**: nếu một cạnh nằm trên cả đường 1 và 2 thì lần 3 nó bị phạt ×9.
 
-**Khác với Yen's K-Shortest Paths**: không đảm bảo K đường ngắn nhất tuyệt đối, nhưng cho ra các đường **khác biệt rõ trên bản đồ** — phù hợp mục tiêu minh hoạ trực quan. Yen's từng được thử nhưng 3 đường ra chênh lệch <1% (2.18, 2.19, 2.20 km), nhìn trên bản đồ gần như trùng nhau.
 
 ### 3. Ước tính thời gian
 
