@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <title>Tìm đường - Quận Hai Bà Trưng</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div id="sidebar">
+        <h2>Tìm đường Quận Hai Bà Trưng</h2>
+
+        <div class="section">
+            <p class="hint">Click 2 điểm trên bản đồ để chọn Điểm đầu và Điểm cuối.</p>
+            <div>Điểm đầu: <span id="start-info">chưa chọn</span></div>
+            <div>Điểm cuối: <span id="end-info">chưa chọn</span></div>
+            <button id="find-btn" disabled>Tìm 3 đường đi</button>
+            <button id="reset-btn">Đặt lại</button>
+        </div>
+
+        <div class="section">
+            <h3>Kết quả</h3>
+            <div id="results">Chưa có kết quả.</div>
+        </div>
+
+        <div class="section">
+            <h3>Mô phỏng traffic</h3>
+            <p class="hint">Click vào đoạn đường để đổi trạng thái thủ công:<br>
+                <span class="dot dot-1"></span> Thông thoáng &nbsp;
+                <span class="dot dot-2"></span> Chậm &nbsp;
+                <span class="dot dot-5"></span> Tắc
+            </p>
+            <button id="random-btn">Random toàn bộ</button>
+            <button id="reset-traffic-btn">Đặt lại thông thoáng</button>
+            <button id="auto-sim-btn">Bật mô phỏng auto</button>
+            <p class="hint" id="auto-sim-status"></p>
+        </div>
+
+        <div id="status">Đang tải...</div>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/graph.js"></script>
+    <script src="js/pathfinding.js"></script>
+    <script src="js/traffic.js"></script>
+</body>
+</html>
