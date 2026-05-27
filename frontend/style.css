@@ -160,3 +160,88 @@ button#reset-btn {
     height: 18px;
     text-shadow: 0 0 2px #fff, 0 0 2px #fff;
 }
+
+/* Autocomplete styling */
+.input-group {
+    margin-bottom: 12px;
+}
+
+.input-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 4px;
+}
+
+.autocomplete-container {
+    position: relative;
+    width: 100%;
+}
+
+.autocomplete-container input {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 13px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background-color: #fff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+}
+
+.autocomplete-container input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.suggestions-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    max-height: 200px;
+    overflow-y: auto;
+    display: none;
+    margin-top: 4px;
+}
+
+.suggestion-item {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #1f2937;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover {
+    background-color: #f3f4f6;
+}
+
+.button-group {
+    margin-top: 14px;
+    display: flex;
+    gap: 8px;
+}
+
+.button-group button {
+    margin-top: 0;
+    flex: 1;
+}
+
+.button-group button#reset-btn {
+    margin-left: 0;
+}
