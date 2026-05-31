@@ -44,38 +44,59 @@ def fetch_osm():
 
 
 def build_graph(data):
-    print("Đang tạo schema DB...")
-    database.init_schema()
+    import json
+    import os
 
-    conn = database.get_connection()
-    node_count = 0
-    edge_count = 0
-
+    print("Đang phân tích dữ liệu OSM và tạo đồ thị...")
+    nodes_dict = {}
+    edges_dict = {}  # key: (node1_id, node2_id) sorted
+    
     for way in data.get("elements", []):
         geom = way.get("geometry") or []
         tags = way.get("tags") or {}
         street_name = tags.get("name")
         for i, pt in enumerate(geom):
             curr_id = node_id(pt["lat"], pt["lon"])
-            database.insert_node(conn, curr_id, pt["lat"], pt["lon"])
-            node_count += 1
+            nodes_dict[curr_id] = {
+                "id": curr_id,
+                "lat": pt["lat"],
+                "lon": pt["lon"]
+            }
 
             if i > 0:
                 prev = geom[i - 1]
                 prev_id = node_id(prev["lat"], prev["lon"])
                 dist = haversine_km(prev["lat"], prev["lon"], pt["lat"], pt["lon"])
-                database.insert_edge(conn, prev_id, curr_id, dist, street_name)
-                edge_count += 1
+                a, b = sorted([prev_id, curr_id])
+                
+                if (a, b) not in edges_dict:
+                    edges_dict[(a, b)] = {
+                        "node1_id": a,
+                        "node2_id": b,
+                        "distance_km": round(dist, 5),
+                        "traffic_level": 1,
+                        "road_status": "normal",
+                        "is_oneway": 0,
+                        "street_name": street_name
+                    }
+                else:
+                    if street_name and not edges_dict[(a, b)]["street_name"]:
+                        edges_dict[(a, b)]["street_name"] = street_name
 
-    conn.commit()
-    conn.close()
-    print(f"Đã ghi vào DB. (Đã xử lý {node_count} điểm, {edge_count} cạnh)")
+    output_path = os.path.join(os.path.dirname(__file__), "graph_data.json")
+    
+    graph_data = {
+        "nodes": list(nodes_dict.values()),
+        "edges": list(edges_dict.values())
+    }
+    
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(graph_data, f, ensure_ascii=False, indent=2)
+        
+    print(f"Đã ghi vào file {output_path}. (Đã xử lý {len(nodes_dict)} nodes unique, {len(edges_dict)} edges unique)")
 
 
 if __name__ == "__main__":
     data = fetch_osm()
     build_graph(data)
-    nodes = database.get_all_nodes()
-    edges = database.get_all_edges()
-    print(f"Tổng số nodes trong DB: {len(nodes)}")
-    print(f"Tổng số edges trong DB: {len(edges)}")
+

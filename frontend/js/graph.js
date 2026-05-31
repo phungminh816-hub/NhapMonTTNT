@@ -69,6 +69,40 @@ function applyEdgeStyle(line) {
     }
 }
 
+function updateLegendStats() {
+    const counts = {
+        "1": 0,
+        "2": 0,
+        "5": 0,
+        "flooded": 0,
+        "closed": 0,
+        "oneway": 0
+    };
+    APP.edgeLayers.forEach((line) => {
+        const state = edgeStateOf(line._edgeData);
+        if (state === "oneway_ab" || state === "oneway_ba") {
+            counts["oneway"]++;
+        } else if (counts[state] !== undefined) {
+            counts[state]++;
+        }
+    });
+
+    const el1 = document.getElementById("legend-count-1");
+    const el2 = document.getElementById("legend-count-2");
+    const el5 = document.getElementById("legend-count-5");
+    const elFlooded = document.getElementById("legend-count-flooded");
+    const elClosed = document.getElementById("legend-count-closed");
+    const elOneway = document.getElementById("legend-count-oneway");
+
+    if (el1) el1.innerText = ` (${counts["1"]})`;
+    if (el2) el2.innerText = ` (${counts["2"]})`;
+    if (el5) el5.innerText = ` (${counts["5"]})`;
+    if (elFlooded) elFlooded.innerText = ` (${counts["flooded"]})`;
+    if (elClosed) elClosed.innerText = ` (${counts["closed"]})`;
+    if (elOneway) elOneway.innerText = ` (${counts["oneway"]})`;
+}
+window.updateLegendStats = updateLegendStats;
+
 function trafficColor(level) {
     // Giữ lại cho code cũ; trả về màu theo traffic_level đơn thuần.
     if (level === 5) return "#dc2626";
@@ -102,6 +136,7 @@ function loadGraph() {
                     traffic_level: e.traffic_level,
                     road_status: e.road_status || "normal",
                     is_oneway: e.is_oneway || 0,
+                    schedules: e.schedules || [],
                 };
                 line.addTo(APP.map);
                 applyEdgeStyle(line);
@@ -113,6 +148,9 @@ function loadGraph() {
             setStatus(
                 `Đã tải ${data.nodes.length} nodes, ${data.edges.length} edges.`
             );
+
+            // Cập nhật số liệu legend
+            updateLegendStats();
 
             // Gắn handler click cho edges (định nghĩa trong traffic.js)
             if (typeof attachTrafficHandlers === "function") {

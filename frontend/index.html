@@ -2,71 +2,211 @@
 <html lang="vi">
 <head>
     <meta charset="utf-8" />
-    <title>Tìm đường - Quận Hai Bà Trưng</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hệ thống tìm đường thông minh - Quận Hai Bà Trưng</title>
+    <link rel="stylesheet" href="/landing.css" />
 </head>
 <body>
-    <div id="sidebar">
-        <h2>Tìm đường Quận Hai Bà Trưng</h2>
-
-        <div class="section">
-            <p class="hint">Nhập địa điểm hoặc click trực tiếp trên bản đồ.</p>
-            
-            <div class="input-group">
-                <label for="start-input">Điểm đi:</label>
-                <div class="autocomplete-container">
-                    <input type="text" id="start-input" placeholder="Nhập điểm đi hoặc click map..." autocomplete="off">
-                    <div id="start-suggestions" class="suggestions-list"></div>
-                </div>
-            </div>
-            
-            <div class="input-group">
-                <label for="end-input">Điểm đến:</label>
-                <div class="autocomplete-container">
-                    <input type="text" id="end-input" placeholder="Nhập điểm đến hoặc click map..." autocomplete="off">
-                    <div id="end-suggestions" class="suggestions-list"></div>
-                </div>
-            </div>
-
-            <div class="button-group">
-                <button id="find-btn" disabled>Tìm 3 đường đi</button>
-                <button id="reset-btn">Đặt lại</button>
-            </div>
-        </div>
-
-        <div class="section">
-            <h3>Kết quả</h3>
-            <div id="results">Chưa có kết quả.</div>
-        </div>
-
-        <div class="section">
-            <h3>Mô phỏng điều kiện đường</h3>
-            <p class="hint">Click vào đoạn đường để chuyển trạng thái theo chu kỳ:</p>
-            <div class="legend">
-                <div><span class="dot dot-1"></span> Thông thoáng</div>
-                <div><span class="dot dot-2"></span> Chậm</div>
-                <div><span class="dot dot-5"></span> Tắc</div>
-                <div><span class="dot dot-flooded"></span> Ngập lụt (rất chậm)</div>
-                <div><span class="dot dot-closed"></span> Cấm đường (không đi)</div>
-                <div><span class="dot dot-oneway"></span> 1 chiều (mũi tên ▶)</div>
-            </div>
-            <button id="random-btn">Random traffic</button>
-            <button id="demo-special-btn">Demo điều kiện đặc biệt</button>
-            <button id="reset-traffic-btn">Đặt lại tất cả</button>
-            <button id="auto-sim-btn">Bật mô phỏng auto</button>
-            <p class="hint" id="auto-sim-status"></p>
-        </div>
-
-        <div id="status">Đang tải...</div>
+    <!-- Background Glow Blobs -->
+    <div class="bg-glows">
+        <div class="glow-1"></div>
+        <div class="glow-2"></div>
     </div>
 
-    <div id="map"></div>
+    <!-- Header / Navbar -->
+    <header id="header">
+        <div class="container navbar">
+            <a href="/" class="logo">
+                <div class="logo-dot"></div>
+                <span>HBT</span>Router
+            </a>
+            <ul class="nav-links">
+                <li><a href="#features">Tính năng</a></li>
+                <li><a href="#stats">Thống kê</a></li>
+                <li><a href="https://github.com" target="_blank">Tài liệu</a></li>
+                <li><a href="/map" class="nav-btn btn-glow">Trải nghiệm Bản đồ</a></li>
+            </ul>
+        </div>
+    </header>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="js/map.js"></script>
-    <script src="js/graph.js"></script>
-    <script src="js/pathfinding.js"></script>
-    <script src="js/traffic.js"></script>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container hero-grid">
+            <div class="hero-content">
+                <h1>Tìm Kiếm Đường Đi <br><span>Thông Minh & Tối Ưu</span></h1>
+                <p>
+                    Hệ thống trực quan hóa mạng lưới đường đi Quận Hai Bà Trưng sử dụng thuật toán 
+                    <strong>A* Hai Chiều (Bidirectional A*)</strong>. Tự động đề xuất 3 lộ trình tốt nhất, 
+                    linh hoạt né tránh các điểm ngập lụt, ùn tắc và cấm đường theo khung giờ thực tế.
+                </p>
+                <div class="cta-group">
+                    <a href="/map" class="nav-btn btn-glow btn-lg">Khám phá Bản đồ ngay</a>
+                    <a href="#features" class="nav-btn btn-outline btn-lg">Tìm hiểu tính năng</a>
+                </div>
+            </div>
+            
+            <div class="hero-visual">
+                <!-- Interactive Glassmorphic Network Visualization -->
+                <div class="network-card glass">
+                    <svg viewBox="0 0 500 400" width="100%" height="100%">
+                        <!-- Grid Lines Background -->
+                        <defs>
+                            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255, 255, 255, 0.02)" stroke-width="1"/>
+                            </pattern>
+                        </defs>
+                        <rect width="100%" height="100%" fill="url(#grid)" />
+
+                        <!-- Graph Edges / Streets (Background) -->
+                        <line x1="80" y1="120" x2="200" y2="80" class="net-edge" />
+                        <line x1="80" y1="120" x2="150" y2="220" class="net-edge" />
+                        <line x1="200" y1="80" x2="320" y2="100" class="net-edge" />
+                        <line x1="150" y1="220" x2="280" y2="200" class="net-edge" />
+                        <line x1="280" y1="200" x2="320" y2="100" class="net-edge" />
+                        <line x1="150" y1="220" x2="110" y2="320" class="net-edge" />
+                        <line x1="280" y1="200" x2="240" y2="300" class="net-edge" />
+                        <line x1="110" y1="320" x2="240" y2="300" class="net-edge" />
+                        <line x1="240" y1="300" x2="380" y2="280" class="net-edge" />
+                        <line x1="320" y1="100" x2="420" y2="180" class="net-edge" />
+                        
+                        <!-- Congested / Blocked road demo line -->
+                        <line x1="320" y1="100" x2="280" y2="200" class="net-edge congested" />
+                        
+                        <!-- Bidirectional Pathfinding Highlights (Moving Dashes) -->
+                        <!-- Forward path search from Start (Blue) -->
+                        <path d="M 80 120 L 200 80 L 320 100" class="net-edge path-fwd" fill="none" />
+                        <!-- Backward path search from End (Red) -->
+                        <path d="M 380 280 L 240 300 L 150 220" class="net-edge path-bwd" fill="none" />
+                        <!-- Connecting path -->
+                        <path d="M 150 220 L 80 120" class="net-edge path-fwd" fill="none" stroke-width="4" style="stroke: #10b981;" />
+
+                        <!-- Graph Nodes -->
+                        <circle cx="200" cy="80" r="6" class="net-node" />
+                        <circle cx="320" cy="100" r="6" class="net-node" />
+                        <circle cx="280" cy="200" r="6" class="net-node active" />
+                        <circle cx="150" cy="220" r="6" class="net-node active" />
+                        <circle cx="110" cy="320" r="6" class="net-node" />
+                        <circle cx="240" cy="300" r="6" class="net-node" />
+                        <circle cx="420" cy="180" r="6" class="net-node" />
+                        
+                        <!-- Start Node (Blue glow) -->
+                        <circle cx="80" cy="120" r="8" class="net-node start" />
+                        <!-- Goal Node (Red glow) -->
+                        <circle cx="380" cy="280" r="8" class="net-node end" />
+
+                        <!-- Pulsing search meeting points -->
+                        <circle cx="150" cy="220" r="4" class="glow-point" />
+                        <circle cx="280" cy="200" r="4" class="glow-point" />
+                        
+                        <!-- SVG labels -->
+                        <text x="75" y="100" fill="#60a5fa" font-size="11" font-weight="bold">ĐIỂM ĐI</text>
+                        <text x="375" y="310" fill="#f87171" font-size="11" font-weight="bold">ĐIỂM ĐẾN</text>
+                        <text x="290" y="150" fill="#f87171" font-size="10" transform="rotate(70, 290, 150)">ÙN TẮC</text>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <h2>Công nghệ & Tính năng Nổi bật</h2>
+                <p>Được xây dựng trên nền tảng tối ưu hiệu năng đồ thị in-memory kết hợp trực quan hóa hiện đại.</p>
+            </div>
+            
+            <div class="features-grid">
+                <!-- Feature 1 -->
+                <div class="feature-card glass">
+                    <div class="feature-icon">⚡</div>
+                    <h3>A* Hai Chiều</h3>
+                    <p>
+                        Tìm đường đồng thời từ điểm xuất phát và điểm đích giúp giảm thiểu tới 70% không gian tìm kiếm, 
+                        mang lại tốc độ truy vấn vượt trội với 3 phương án tối ưu.
+                    </p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="feature-card glass">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Ranh giới Neon & Phủ mờ</h3>
+                    <p>
+                        Ranh giới Quận Hai Bà Trưng được viền Neon dạ quang động, đồng thời làm mờ và phủ tối các khu vực 
+                        xung quanh giúp người dùng tập trung hoàn toàn vào khu vực bản đồ dự án.
+                    </p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="feature-card glass">
+                    <div class="feature-icon">🕒</div>
+                    <h3>Định tuyến theo Giờ</h3>
+                    <p>
+                        Kéo chọn giờ khởi hành của bạn. Thuật toán tự động liên kết với lịch trình sự cố để lựa chọn tuyến đường 
+                        thông thoáng nhất tại đúng thời điểm bạn di chuyển.
+                    </p>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="feature-card glass">
+                    <div class="feature-icon">🚦</div>
+                    <h3>Mô phỏng Động</h3>
+                    <p>
+                        Dễ dàng lên lịch ngập nước, cấm đường hay ùn ứ theo giờ trực tiếp trên bản đồ. Tuyến đường đi sẽ tự động 
+                        được tính toán lại tức thì để né tránh sự cố.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats" id="stats">
+        <div class="container stats-grid">
+            <div class="stat-item">
+                <h4>4.847</h4>
+                <p>Nút giao thông (Nodes)</p>
+            </div>
+            <div class="stat-item">
+                <h4>5.174</h4>
+                <p>Đoạn đường kết nối (Edges)</p>
+            </div>
+            <div class="stat-item">
+                <h4>&lt; 2ms</h4>
+                <p>Thời gian phản hồi thuật toán</p>
+            </div>
+            <div class="stat-item">
+                <h4>100%</h4>
+                <p>Dữ liệu In-Memory (JSON)</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container footer-content">
+            <a href="#" class="footer-logo"><span>HBT</span>Router</a>
+            <ul class="footer-links">
+                <li><a href="#features">Tính năng</a></li>
+                <li><a href="#stats">Thống kê</a></li>
+                <li><a href="/map">Trải nghiệm Bản đồ</a></li>
+            </ul>
+        </div>
+        <div class="container copyright">
+            <p>&copy; 2026 Nhóm 7 - Nhập môn Trí tuệ Nhân tạo. Phát triển với kiến trúc In-Memory tối giản & hiệu năng cao.</p>
+        </div>
+    </footer>
+
+    <!-- Header Scroll Script -->
+    <script>
+        window.addEventListener('scroll', () => {
+            const header = document.getElementById('header');
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+    </script>
 </body>
 </html>

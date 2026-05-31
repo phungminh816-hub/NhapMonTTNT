@@ -2,6 +2,30 @@
 
 const PATH_COLORS = ["#2563eb", "#dc2626", "#16a34a"];
 
+APP.departureHour = 12;
+
+// Lắng nghe sự kiện trượt chọn giờ khởi hành
+document.addEventListener("DOMContentLoaded", () => {
+    const slider = document.getElementById("departure-hour-slider");
+    const valDisplay = document.getElementById("departure-hour-val");
+    if (slider && valDisplay) {
+        slider.value = APP.departureHour;
+        valDisplay.innerText = APP.departureHour;
+
+        slider.addEventListener("input", () => {
+            APP.departureHour = parseInt(slider.value, 10);
+            valDisplay.innerText = APP.departureHour;
+        });
+
+        // Tự động tìm lại đường đi khi thay đổi giờ khởi hành
+        slider.addEventListener("change", () => {
+            if (APP.startCoord && APP.endCoord) {
+                document.getElementById("find-btn").click();
+            }
+        });
+    }
+});
+
 function clearPaths() {
     APP.pathLayers.forEach((l) => APP.map.removeLayer(l));
     APP.pathLayers = [];
@@ -14,11 +38,59 @@ function drawPath(pathObj, idx) {
         .map((n) => [n.lat, n.lon]);
     if (latlngs.length < 2) return null;
 
-    const line = L.polyline(latlngs, {
-        color: PATH_COLORS[idx % PATH_COLORS.length],
+    const pathColor = PATH_COLORS[idx % PATH_COLORS.length];
+
+    // 1. Vẽ đường nối nét đứt từ Điểm đi (startCoord) đến node đầu tiên của đường đi nếu khoảng cách > 0
+    if (APP.startCoord) {
+        const startLatLng = [APP.startCoord.lat, APP.startCoord.lon];
+        const distDiff = Math.abs(APP.startCoord.lat - latlngs[0][0]) > 0.00001 || 
+                         Math.abs(APP.startCoord.lon - latlngs[0][1]) > 0.00001;
+        if (distDiff) {
+            const startConnector = L.polyline([startLatLng, latlngs[0]], {
+                color: pathColor,
+                weight: 4,
+                opacity: 0.75,
+                dashArray: "6, 6"
+            }).addTo(APP.map);
+            APP.pathLayers.push(startConnector);
+        }
+    }
+
+    // 2. Vẽ đường nối nét đứt từ node cuối cùng đến Điểm đến (endCoord) nếu khoảng cách > 0
+    if (APP.endCoord) {
+        const endLatLng = [APP.endCoord.lat, APP.endCoord.lon];
+        const distDiff = Math.abs(APP.endCoord.lat - latlngs[latlngs.length - 1][0]) > 0.00001 || 
+                         Math.abs(APP.endCoord.lon - latlngs[latlngs.length - 1][1]) > 0.00001;
+        if (distDiff) {
+            const endConnector = L.polyline([latlngs[latlngs.length - 1], endLatLng], {
+                color: pathColor,
+                weight: 4,
+                opacity: 0.75,
+                dashArray: "6, 6"
+            }).addTo(APP.map);
+            APP.pathLayers.push(endConnector);
+        }
+    }
+
+    // 3. Khởi tạo polyline rỗng cho đường chính
+    const line = L.polyline([], {
+        color: pathColor,
         weight: 6,
         opacity: 0.85,
     }).addTo(APP.map);
+
+    // Hiệu ứng vẽ động từ từ từ điểm đi đến điểm đến
+    let i = 0;
+    const delay = Math.max(4, Math.min(25, 400 / latlngs.length)); // Tự động căn chỉnh độ trễ dựa trên độ dài đường
+    const animateDraw = () => {
+        if (i < latlngs.length) {
+            line.addLatLng(latlngs[i]);
+            i++;
+            setTimeout(animateDraw, delay);
+        }
+    };
+    animateDraw();
+
     return line;
 }
 
@@ -76,7 +148,11 @@ document.getElementById("find-btn").addEventListener("click", () => {
         fetch(`${API_BASE}/api/find-path`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ start: APP.startCoord, end: APP.endCoord }),
+            body: JSON.stringify({ 
+                start: APP.startCoord, 
+                end: APP.endCoord,
+                departure_hour: APP.departureHour
+            }),
         })
             .then((r) => r.json())
             .then((data) => {

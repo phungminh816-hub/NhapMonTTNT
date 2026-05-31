@@ -1,120 +1,86 @@
-"""Kết nối SQLite và các thao tác đọc/ghi graph."""
-import sqlite3
+"""Đọc/ghi đồ thị in-memory từ file JSON tĩnh graph_data.json."""
+import json
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "graph.db")
+GRAPH_DATA_PATH = os.path.join(os.path.dirname(__file__), "graph_data.json")
+
+# Biến lưu trữ in-memory
+_nodes = []
+_edges = []
+_edges_by_key = {}  # tuple (a, b) sorted -> edge dict
 
 
-def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+def _load_if_needed():
+    global _nodes, _edges, _edges_by_key
+    if not _nodes:
+        if os.path.exists(GRAPH_DATA_PATH):
+            try:
+                with open(GRAPH_DATA_PATH, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    _nodes = data.get("nodes", [])
+                    _edges = data.get("edges", [])
+                    _edges_by_key = {}
+                    for e in _edges:
+                        a, b = sorted([e["node1_id"], e["node2_id"]])
+                        _edges_by_key[(a, b)] = e
+            except Exception as ex:
+                print(f"Error loading graph_data.json: {ex}")
+        else:
+            print(f"Warning: {GRAPH_DATA_PATH} not found.")
+
+
+def _save_to_file():
+    """Ghi lại thay đổi vào file JSON nếu có thể (chỉ cho local development).
+
+    Khi host trên Vercel, hệ thống tập tin là Read-only nên thao tác ghi sẽ
+    bị bỏ qua mà không làm crash ứng dụng.
+    """
+    try:
+        graph_data = {
+            "nodes": _nodes,
+            "edges": _edges
+        }
+        with open(GRAPH_DATA_PATH, "w", encoding="utf-8") as f:
+            json.dump(graph_data, f, ensure_ascii=False, indent=2)
+    except Exception as ex:
+        print(f"Skipping file write (read-only filesystem): {ex}")
 
 
 def init_schema():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS nodes (
-            id TEXT PRIMARY KEY,
-            lat REAL NOT NULL,
-            lon REAL NOT NULL
-        )
-    """)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS edges (
-            node1_id TEXT NOT NULL,
-            node2_id TEXT NOT NULL,
-            distance_km REAL NOT NULL,
-            traffic_level INTEGER NOT NULL DEFAULT 1,
-            road_status TEXT NOT NULL DEFAULT 'normal',
-            is_oneway INTEGER NOT NULL DEFAULT 0,
-            street_name TEXT,
-            PRIMARY KEY (node1_id, node2_id),
-            FOREIGN KEY (node1_id) REFERENCES nodes(id),
-            FOREIGN KEY (node2_id) REFERENCES nodes(id)
-        )
-    """)
-    # Migrate DB cũ: thêm 2 cột mới nếu chưa có.
-    cur.execute("PRAGMA table_info(edges)")
-    existing_cols = {row[1] for row in cur.fetchall()}
-    if "road_status" not in existing_cols:
-        cur.execute(
-            "ALTER TABLE edges ADD COLUMN road_status TEXT NOT NULL DEFAULT 'normal'"
-        )
-    if "is_oneway" not in existing_cols:
-        cur.execute(
-            "ALTER TABLE edges ADD COLUMN is_oneway INTEGER NOT NULL DEFAULT 0"
-        )
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_edges_node1 ON edges(node1_id)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_edges_node2 ON edges(node2_id)")
-    conn.commit()
-    conn.close()
-
-
-def insert_node(conn, node_id, lat, lon):
-    conn.execute(
-        "INSERT OR IGNORE INTO nodes (id, lat, lon) VALUES (?, ?, ?)",
-        (node_id, lat, lon),
-    )
-
-
-def insert_edge(conn, node1_id, node2_id, distance_km, street_name=None):
-    a, b = sorted([node1_id, node2_id])
-    conn.execute(
-        "INSERT OR IGNORE INTO edges (node1_id, node2_id, distance_km, traffic_level, street_name) VALUES (?, ?, ?, 1, ?)",
-        (a, b, distance_km, street_name),
-    )
+    _load_if_needed()
 
 
 def get_all_nodes():
-    conn = get_connection()
-    rows = conn.execute("SELECT id, lat, lon FROM nodes").fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    _load_if_needed()
+    return _nodes
 
 
 def get_all_edges():
-    conn = get_connection()
-    rows = conn.execute(
-        "SELECT node1_id, node2_id, distance_km, traffic_level, "
-        "road_status, is_oneway, street_name FROM edges"
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    _load_if_needed()
+    return _edges
 
 
 def update_edge_state(node1_id, node2_id, traffic_level, road_status, is_oneway):
-    """Cập nhật toàn bộ state của 1 cạnh: traffic_level + road_status + is_oneway.
-
-    is_oneway: 0=hai chiều, 1=cho phép a→b (theo node sorted), 2=cho phép b→a.
-    road_status: 'normal' | 'flooded' | 'closed'.
-    """
+    _load_if_needed()
     a, b = sorted([node1_id, node2_id])
-    conn = get_connection()
-    conn.execute(
-        "UPDATE edges SET traffic_level = ?, road_status = ?, is_oneway = ? "
-        "WHERE node1_id = ? AND node2_id = ?",
-        (traffic_level, road_status, is_oneway, a, b),
-    )
-    conn.commit()
-    conn.close()
+    edge = _edges_by_key.get((a, b))
+    if edge:
+        edge["traffic_level"] = traffic_level
+        edge["road_status"] = road_status
+        edge["is_oneway"] = is_oneway
+        _save_to_file()
 
 
 def update_traffic(node1_id, node2_id, level):
-    """Cập nhật riêng traffic_level (giữ lại để tương thích ngược)."""
+    _load_if_needed()
     a, b = sorted([node1_id, node2_id])
-    conn = get_connection()
-    conn.execute(
-        "UPDATE edges SET traffic_level = ? WHERE node1_id = ? AND node2_id = ?",
-        (level, a, b),
-    )
-    conn.commit()
-    conn.close()
+    edge = _edges_by_key.get((a, b))
+    if edge:
+        edge["traffic_level"] = level
+        _save_to_file()
 
 
 def _random_level():
-    """Phân bố: 70% thông (1), 20% chậm (2), 10% tắc (5)."""
     import random
     r = random.random()
     if r < 0.70:
@@ -125,51 +91,40 @@ def _random_level():
 
 
 def randomize_traffic(count=None):
-    """Random traffic cho `count` cạnh (None = toàn bộ).
-
-    Trả về list dict {node1_id, node2_id, traffic_level} của các cạnh đã đổi.
-    """
+    _load_if_needed()
     import random
-    conn = get_connection()
-    rows = conn.execute("SELECT node1_id, node2_id FROM edges").fetchall()
-    edges = [(r["node1_id"], r["node2_id"]) for r in rows]
-    if count is not None and count < len(edges):
-        edges = random.sample(edges, count)
+    edges_to_update = list(_edges_by_key.values())
+    if count is not None and count < len(edges_to_update):
+        edges_to_update = random.sample(edges_to_update, count)
 
     changes = []
-    for a, b in edges:
+    for edge in edges_to_update:
         lvl = _random_level()
-        conn.execute(
-            "UPDATE edges SET traffic_level = ? WHERE node1_id = ? AND node2_id = ?",
-            (lvl, a, b),
-        )
-        changes.append({"node1_id": a, "node2_id": b, "traffic_level": lvl})
-    conn.commit()
-    conn.close()
+        edge["traffic_level"] = lvl
+        changes.append({
+            "node1_id": edge["node1_id"],
+            "node2_id": edge["node2_id"],
+            "traffic_level": lvl
+        })
+    _save_to_file()
     return changes
 
 
 def demo_special_states(n_flooded=30, n_closed=15, n_oneway=35):
-    """Random hoá một số cạnh sang các trạng thái đặc biệt để demo.
-
-    - n_flooded cạnh -> road_status='flooded'
-    - n_closed  cạnh -> road_status='closed'
-    - n_oneway  cạnh -> is_oneway = 1 hoặc 2 (chia đôi)
-
-    Các cạnh được chọn ngẫu nhiên KHÔNG trùng nhau. Trả về list cạnh đã đổi
-    kèm full state để frontend update visualization.
-    """
+    _load_if_needed()
     import random
-    conn = get_connection()
-    rows = conn.execute("SELECT node1_id, node2_id FROM edges").fetchall()
-    all_edges = [(r["node1_id"], r["node2_id"]) for r in rows]
+    all_edges = list(_edges_by_key.values())
     total_need = n_flooded + n_closed + n_oneway
     if total_need > len(all_edges):
-        # graph quá nhỏ, scale down
         total_need = len(all_edges)
         n_flooded = total_need // 3
         n_closed = total_need // 3
         n_oneway = total_need - n_flooded - n_closed
+
+    # Đưa tất cả các cạnh về trạng thái bình thường trước
+    for edge in all_edges:
+        edge["road_status"] = "normal"
+        edge["is_oneway"] = 0
 
     picked = random.sample(all_edges, total_need)
     flooded = picked[:n_flooded]
@@ -177,58 +132,67 @@ def demo_special_states(n_flooded=30, n_closed=15, n_oneway=35):
     oneway = picked[n_flooded + n_closed:]
 
     changes = []
-    for a, b in flooded:
-        conn.execute(
-            "UPDATE edges SET road_status='flooded', is_oneway=0 "
-            "WHERE node1_id=? AND node2_id=?", (a, b),
-        )
-        changes.append({"node1_id": a, "node2_id": b, "road_status": "flooded", "is_oneway": 0})
+    for edge in flooded:
+        edge["road_status"] = "flooded"
+        edge["is_oneway"] = 0
+        changes.append({
+            "node1_id": edge["node1_id"],
+            "node2_id": edge["node2_id"],
+            "road_status": "flooded",
+            "is_oneway": 0
+        })
 
-    for a, b in closed:
-        conn.execute(
-            "UPDATE edges SET road_status='closed', is_oneway=0 "
-            "WHERE node1_id=? AND node2_id=?", (a, b),
-        )
-        changes.append({"node1_id": a, "node2_id": b, "road_status": "closed", "is_oneway": 0})
+    for edge in closed:
+        edge["road_status"] = "closed"
+        edge["is_oneway"] = 0
+        changes.append({
+            "node1_id": edge["node1_id"],
+            "node2_id": edge["node2_id"],
+            "road_status": "closed",
+            "is_oneway": 0
+        })
 
-    for a, b in oneway:
+    for edge in oneway:
         direction = random.choice([1, 2])
-        conn.execute(
-            "UPDATE edges SET road_status='normal', is_oneway=? "
-            "WHERE node1_id=? AND node2_id=?", (direction, a, b),
-        )
-        changes.append({"node1_id": a, "node2_id": b, "road_status": "normal", "is_oneway": direction})
+        edge["road_status"] = "normal"
+        edge["is_oneway"] = direction
+        changes.append({
+            "node1_id": edge["node1_id"],
+            "node2_id": edge["node2_id"],
+            "road_status": "normal",
+            "is_oneway": direction
+        })
 
-    conn.commit()
-    conn.close()
+    _save_to_file()
     return changes
 
 
 def reset_traffic():
-    """Đặt tất cả cạnh về trạng thái mặc định:
-    traffic_level=1, road_status='normal', is_oneway=0.
-
-    Trả về list cạnh đã đổi (kèm cả 3 trường để frontend reset visualization).
-    """
-    conn = get_connection()
-    rows = conn.execute(
-        "SELECT node1_id, node2_id FROM edges "
-        "WHERE traffic_level != 1 OR road_status != 'normal' OR is_oneway != 0"
-    ).fetchall()
-    changes = [
-        {
-            "node1_id": r["node1_id"],
-            "node2_id": r["node2_id"],
-            "traffic_level": 1,
-            "road_status": "normal",
-            "is_oneway": 0,
-        }
-        for r in rows
-    ]
-    conn.execute(
-        "UPDATE edges SET traffic_level = 1, road_status = 'normal', is_oneway = 0 "
-        "WHERE traffic_level != 1 OR road_status != 'normal' OR is_oneway != 0"
-    )
-    conn.commit()
-    conn.close()
+    _load_if_needed()
+    changes = []
+    for edge in _edges:
+        if edge["traffic_level"] != 1 or edge["road_status"] != "normal" or edge["is_oneway"] != 0:
+            edge["traffic_level"] = 1
+            edge["road_status"] = "normal"
+            edge["is_oneway"] = 0
+            changes.append({
+                "node1_id": edge["node1_id"],
+                "node2_id": edge["node2_id"],
+                "traffic_level": 1,
+                "road_status": "normal",
+                "is_oneway": 0
+            })
+    _save_to_file()
     return changes
+
+
+def update_edge_schedules(node1_id, node2_id, schedules):
+    """Cập nhật danh sách lịch trình tắc đường theo giờ cho một cạnh cụ thể."""
+    _load_if_needed()
+    a, b = sorted([node1_id, node2_id])
+    edge = _edges_by_key.get((a, b))
+    if edge:
+        edge["schedules"] = schedules
+        _save_to_file()
+        return True
+    return False

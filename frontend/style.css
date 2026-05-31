@@ -245,3 +245,83 @@ button#reset-btn {
 .button-group button#reset-btn {
     margin-left: 0;
 }
+
+/* Hiệu ứng viền phát sáng (neon glow) cho ranh giới quận */
+.district-boundary-glow {
+    filter: drop-shadow(0 0 5px #2563eb);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.district-boundary-inner {
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    /* Nét đứt di chuyển chạy dọc theo ranh giới để tăng tính tương tác */
+    stroke-dasharray: 8, 12;
+    animation: boundaryDash 45s linear infinite;
+}
+
+@keyframes boundaryDash {
+    to {
+        stroke-dashoffset: -1000;
+    }
+}
+
+/* Thiết kế thanh trượt (departure slider) hiện đại */
+#departure-hour-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: #e5e7eb;
+    outline: none;
+    transition: background 0.2s;
+}
+
+#departure-hour-slider:hover {
+    background: #d1d5db;
+}
+
+#departure-hour-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #2563eb;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: transform 0.1s, background 0.1s;
+}
+
+#departure-hour-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    background: #1d4ed8;
+}
+
+#departure-hour-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border: none;
+    border-radius: 50%;
+    background: #2563eb;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: transform 0.1s, background 0.1s;
+}
+
+#departure-hour-slider::-moz-range-thumb:hover {
+    transform: scale(1.15);
+    background: #1d4ed8;
+}
+
+/* Kiểu dáng sang trọng, tinh tế cho các Leaflet popup */
+.leaflet-popup-content-wrapper {
+    border-radius: 8px !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid #f3f4f6 !important;
+}
+
+.leaflet-popup-content {
+    margin: 12px 14px !important;
+}

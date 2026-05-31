@@ -1,6 +1,6 @@
 // Khởi tạo bản đồ Leaflet, quản lý state toàn cục.
 
-const API_BASE = "http://127.0.0.1:5000";
+const API_BASE = (window.location.protocol === "file:") ? "http://127.0.0.1:5000" : "";
 
 const APP = {
     map: null,
@@ -20,6 +20,57 @@ APP.map = L.map("map").setView([21.0125, 105.8546], 14);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "&copy; OpenStreetMap",
 }).addTo(APP.map);
+
+// Tạo pane riêng cho mặt nạ nằm dưới các đường đi và marker nhưng trên bản đồ nền
+APP.map.createPane('maskPane');
+APP.map.getPane('maskPane').style.zIndex = 350;
+
+// Tải ranh giới Quận Hai Bà Trưng và vẽ mặt nạ che mờ các quận xung quanh
+fetch("/boundary.json")
+    .then((r) => r.json())
+    .then((boundaryCoords) => {
+        // Lớp phát sáng neon bên dưới
+        L.polygon(boundaryCoords, {
+            color: "#2563eb",
+            weight: 8,
+            opacity: 0.4,
+            fillColor: "none",
+            interactive: false,
+            pane: 'maskPane',
+            className: 'district-boundary-glow'
+        }).addTo(APP.map);
+
+        // Lớp đường viền nét đứt chạy động bên trên
+        L.polygon(boundaryCoords, {
+            color: "#60a5fa",
+            weight: 2,
+            opacity: 0.95,
+            fillColor: "none",
+            interactive: false,
+            pane: 'maskPane',
+            className: 'district-boundary-inner'
+        }).addTo(APP.map);
+
+        // Đa giác phủ toàn bộ thế giới trừ lỗ hổng là ranh giới quận
+        const worldCoords = [
+            [-90, -180],
+            [90, -180],
+            [90, 180],
+            [-90, 180],
+            [-90, -180]
+        ];
+
+        L.polygon([worldCoords, boundaryCoords], {
+            color: "none",
+            fillColor: "#090d16", // màu tối hiện đại, đậm chất dark theme
+            fillOpacity: 0.72,
+            interactive: false,
+            pane: 'maskPane'
+        }).addTo(APP.map);
+    })
+    .catch((err) => {
+        console.error("Lỗi tải ranh giới boundary.json:", err);
+    });
 
 function setStatus(msg) {
     document.getElementById("status").innerText = msg;

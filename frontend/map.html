@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <title>Bản đồ tìm đường - Quận Hai Bà Trưng</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+    <div id="sidebar">
+        <a href="/" class="back-home-link" style="color: #60a5fa; text-decoration: none; font-size: 12px; display: inline-block; margin-bottom: 8px; font-weight: 500; transition: color 0.2s;">&larr; Quay lại Trang chủ</a>
+        <h2>Tìm đường Quận Hai Bà Trưng</h2>
+
+        <div class="section">
+            <p class="hint">Nhập địa điểm hoặc click trực tiếp trên bản đồ.</p>
+            
+            <div class="input-group">
+                <label for="start-input">Điểm đi:</label>
+                <div class="autocomplete-container">
+                    <input type="text" id="start-input" placeholder="Nhập điểm đi hoặc click map..." autocomplete="off">
+                    <div id="start-suggestions" class="suggestions-list"></div>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label for="end-input">Điểm đến:</label>
+                <div class="autocomplete-container">
+                    <input type="text" id="end-input" placeholder="Nhập điểm đến hoặc click map..." autocomplete="off">
+                    <div id="end-suggestions" class="suggestions-list"></div>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button id="find-btn" disabled>Tìm 3 đường đi</button>
+                <button id="reset-btn">Đặt lại</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Thời gian khởi hành</h3>
+            <p class="hint">Chọn giờ đi để tự động tránh các đoạn đường tắc theo lịch trình:</p>
+            <div class="time-picker-container" style="margin-top: 8px;">
+                <input type="range" id="departure-hour-slider" min="0" max="23" value="12" style="width: 100%; cursor: pointer;">
+                <div style="display: flex; justify-content: space-between; font-size: 11px; color: #555; margin-top: 4px;">
+                    <span>00:00</span>
+                    <span style="font-weight: bold; color: #2563eb; font-size: 13px;"><span id="departure-hour-val">12</span>:00</span>
+                    <span>23:00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Kết quả</h3>
+            <div id="results">Chưa có kết quả.</div>
+        </div>
+
+        <div class="section">
+            <h3>Mô phỏng điều kiện đường</h3>
+            <p class="hint">Click vào đoạn đường để nhập thông tin đường bị tắc hoặc nghẽn:</p>
+            <div class="legend">
+                <div><span class="dot dot-1"></span> Thông thoáng<span id="legend-count-1"></span></div>
+                <div><span class="dot dot-2"></span> Chậm<span id="legend-count-2"></span></div>
+                <div><span class="dot dot-5"></span> Tắc đường<span id="legend-count-5"></span></div>
+                <div><span class="dot dot-flooded"></span> Ngập lụt (rất chậm)<span id="legend-count-flooded"></span></div>
+                <div><span class="dot dot-closed"></span> Cấm đường (không đi)<span id="legend-count-closed"></span></div>
+                <div><span class="dot dot-oneway"></span> Một chiều (mũi tên ▶)<span id="legend-count-oneway"></span></div>
+            </div>
+            <button id="random-btn">Random traffic</button>
+            <button id="demo-special-btn">Demo điều kiện đặc biệt</button>
+            <button id="reset-traffic-btn">Đặt lại tất cả</button>
+            <button id="auto-sim-btn">Bật mô phỏng auto</button>
+            <p class="hint" id="auto-sim-status"></p>
+        </div>
+
+        <div id="status">Đang tải...</div>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/js/map.js"></script>
+    <script src="/js/graph.js"></script>
+    <script src="/js/pathfinding.js"></script>
+    <script src="/js/traffic.js"></script>
+</body>
+</html>

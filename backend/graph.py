@@ -20,7 +20,7 @@ def haversine_km(lat1, lon1, lat2, lon2):
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def load_graph():
+def load_graph(departure_hour=None):
     """Tải toàn bộ graph từ DB vào memory, xử lý cả road_status và is_oneway.
 
     - road_status='closed': bỏ qua cạnh hoàn toàn (không thêm vào adj).
@@ -32,12 +32,14 @@ def load_graph():
     Trả về:
       nodes: dict[id] -> (lat, lon)
       adj:   dict[id] -> list[(neighbor_id, distance_km, effective_traffic, street_name)]
+      adj_rev: dict[id] -> list[(neighbor_id, distance_km, effective_traffic, street_name)]
     """
     nodes = {}
     for n in database.get_all_nodes():
         nodes[n["id"]] = (n["lat"], n["lon"])
 
     adj = {nid: [] for nid in nodes}
+    adj_rev = {nid: [] for nid in nodes}
     for e in database.get_all_edges():
         a, b = e["node1_id"], e["node2_id"]
         d = e["distance_km"]
@@ -45,6 +47,16 @@ def load_graph():
         s = e.get("street_name")
         status = e.get("road_status") or "normal"
         oneway = e.get("is_oneway") or 0
+
+        # Áp dụng lịch trình tắc đường theo giờ nếu được cấu hình và có departure_hour
+        schedules = e.get("schedules") or []
+        if departure_hour is not None:
+            for sched in schedules:
+                if sched["start_hour"] <= departure_hour < sched["end_hour"]:
+                    t = sched.get("traffic_level", t)
+                    status = sched.get("road_status", status)
+                    oneway = sched.get("is_oneway", oneway)
+                    break
 
         if status == "closed":
             continue  # cạnh bị cấm hoàn toàn
@@ -55,11 +67,15 @@ def load_graph():
         if oneway == 0:
             adj[a].append((b, d, eff_t, s))
             adj[b].append((a, d, eff_t, s))
+            adj_rev[b].append((a, d, eff_t, s))
+            adj_rev[a].append((b, d, eff_t, s))
         elif oneway == 1:
             adj[a].append((b, d, eff_t, s))
+            adj_rev[b].append((a, d, eff_t, s))
         elif oneway == 2:
             adj[b].append((a, d, eff_t, s))
-    return nodes, adj
+            adj_rev[a].append((b, d, eff_t, s))
+    return nodes, adj, adj_rev
 
 
 def find_nearest_node(nodes, lat, lon):
@@ -74,8 +90,8 @@ def find_nearest_node(nodes, lat, lon):
     return best_id
 
 
-def astar(nodes, adj, start, goal, edge_penalties=None):
-    """Tìm đường ngắn nhất từ start tới goal bằng A*.
+def bidirectional_astar(nodes, adj, adj_rev, start, goal, edge_penalties=None):
+    """Tìm đường ngắn nhất từ start tới goal bằng thuật toán A* hai chiều (Bidirectional A*).
 
     edge_penalties: dict[edge_key -> multiplier] — nhân thêm vào trọng số cạnh.
         edge_key là tuple sorted((a, b)). Mặc định không phạt.
@@ -85,41 +101,119 @@ def astar(nodes, adj, start, goal, edge_penalties=None):
 
     if start not in nodes or goal not in nodes:
         return None, float("inf")
+    if start == goal:
+        return [start], 0.0
 
     goal_lat, goal_lon = nodes[goal]
+    start_lat, start_lon = nodes[start]
 
-    def h(nid):
+    def h_f(nid):
         lat, lon = nodes[nid]
         return haversine_km(lat, lon, goal_lat, goal_lon)
 
-    g_score = {start: 0.0}
-    came_from = {}
-    open_heap = [(h(start), 0.0, start)]
+    def h_b(nid):
+        lat, lon = nodes[nid]
+        return haversine_km(start_lat, start_lon, lat, lon)
 
-    while open_heap:
-        f, g, current = heapq.heappop(open_heap)
-        if current == goal:
-            path = [current]
-            while current in came_from:
-                current = came_from[current]
-                path.append(current)
-            path.reverse()
-            return path, g
+    # Khởi tạo hướng đi xuôi (Forward) từ start
+    g_f = {start: 0.0}
+    came_from_f = {}
+    open_f = [(h_f(start), 0.0, start)]
+    visited_f = set()
 
-        if g > g_score.get(current, float("inf")):
-            continue
+    # Khởi tạo hướng đi ngược (Backward) từ goal
+    g_b = {goal: 0.0}
+    came_from_b = {}
+    open_b = [(h_b(goal), 0.0, goal)]
+    visited_b = set()
 
-        for nbr, dist, traffic, _ in adj.get(current, []):
-            edge_key = tuple(sorted((current, nbr)))
-            penalty = edge_penalties.get(edge_key, 1.0)
-            weight = dist * traffic * penalty
-            tentative_g = g + weight
-            if tentative_g < g_score.get(nbr, float("inf")):
-                g_score[nbr] = tentative_g
-                came_from[nbr] = current
-                heapq.heappush(open_heap, (tentative_g + h(nbr), tentative_g, nbr))
+    mu = float("inf")
+    best_intersect = None
+    dist_start_goal = haversine_km(start_lat, start_lon, goal_lat, goal_lon)
 
-    return None, float("inf")
+    while open_f and open_b:
+        # Điều kiện dừng tối ưu của Bidirectional A*
+        if open_f[0][0] + open_b[0][0] >= mu + dist_start_goal:
+            break
+
+        # Chọn hướng mở rộng có priority f-score nhỏ hơn để cân bằng
+        if open_f[0][0] <= open_b[0][0]:
+            _, g, curr = heapq.heappop(open_f)
+            if curr in visited_f:
+                continue
+            visited_f.add(curr)
+
+            # Nếu node đã được duyệt bởi phía ngược, kiểm tra tổng cost
+            if curr in visited_b:
+                total_cost = g + g_b[curr]
+                if total_cost < mu:
+                    mu = total_cost
+                    best_intersect = curr
+
+            for nbr, dist, traffic, _ in adj.get(curr, []):
+                edge_key = tuple(sorted((curr, nbr)))
+                penalty = edge_penalties.get(edge_key, 1.0)
+                weight = dist * traffic * penalty
+                tentative_g = g + weight
+                if tentative_g < g_f.get(nbr, float("inf")):
+                    g_f[nbr] = tentative_g
+                    came_from_f[nbr] = curr
+                    heapq.heappush(open_f, (tentative_g + h_f(nbr), tentative_g, nbr))
+                    
+                    if nbr in g_b:
+                        total_cost = tentative_g + g_b[nbr]
+                        if total_cost < mu:
+                            mu = total_cost
+                            best_intersect = nbr
+        else:
+            _, g, curr = heapq.heappop(open_b)
+            if curr in visited_b:
+                continue
+            visited_b.add(curr)
+
+            # Nếu node đã được duyệt bởi phía xuôi, kiểm tra tổng cost
+            if curr in visited_f:
+                total_cost = g + g_f[curr]
+                if total_cost < mu:
+                    mu = total_cost
+                    best_intersect = curr
+
+            for nbr, dist, traffic, _ in adj_rev.get(curr, []):
+                edge_key = tuple(sorted((curr, nbr)))
+                penalty = edge_penalties.get(edge_key, 1.0)
+                weight = dist * traffic * penalty
+                tentative_g = g + weight
+                if tentative_g < g_b.get(nbr, float("inf")):
+                    g_b[nbr] = tentative_g
+                    came_from_b[nbr] = curr
+                    heapq.heappush(open_b, (tentative_g + h_b(nbr), tentative_g, nbr))
+                    
+                    if nbr in g_f:
+                        total_cost = tentative_g + g_f[nbr]
+                        if total_cost < mu:
+                            mu = total_cost
+                            best_intersect = nbr
+
+    if best_intersect is None:
+        return None, float("inf")
+
+    # Tái tạo đường đi từ start -> giao điểm
+    path_f = []
+    curr = best_intersect
+    while curr in came_from_f:
+        path_f.append(curr)
+        curr = came_from_f[curr]
+    path_f.append(start)
+    path_f.reverse()
+
+    # Tái tạo đường đi từ giao điểm -> goal
+    path_b = []
+    curr = best_intersect
+    while curr in came_from_b:
+        curr = came_from_b[curr]
+        path_b.append(curr)
+
+    return path_f + path_b, mu
 
 
 def path_cost(adj, path):
@@ -163,19 +257,18 @@ def path_streets(adj, path):
     return streets
 
 
-def penalty_k_paths(nodes, adj, start, goal, K=3, penalty=3.0):
-    """Tìm K đường đi khác nhau bằng cách phạt cạnh đã dùng.
+def penalty_k_paths(nodes, adj, adj_rev, start, goal, K=3, penalty=3.0):
+    """Tìm K đường đi khác nhau bằng cách phạt cạnh đã dùng (sử dụng Bidirectional A*).
 
-    Lần 1: A* bình thường.
+    Lần 1: Bidirectional A* bình thường.
     Lần k > 1: nhân trọng số các cạnh thuộc các đường trước với `penalty`
-    để A* bị "đẩy" sang đường khác. Khác Yen's: không đảm bảo K đường
-    ngắn nhất tuyệt đối, nhưng cho ra các đường khác biệt rõ trên bản đồ.
+    để thuật toán bị "đẩy" sang đường khác.
     """
     paths = []
     penalties = {}  # edge_key -> tổng penalty đã tích luỹ
 
     for _ in range(K):
-        path, _ = astar(nodes, adj, start, goal, edge_penalties=penalties)
+        path, _ = bidirectional_astar(nodes, adj, adj_rev, start, goal, edge_penalties=penalties)
         if path is None:
             break
         if path in paths:
@@ -194,9 +287,9 @@ def estimated_minutes(distance_km):
     return distance_km / SPEED_KMH * 60.0
 
 
-def find_paths(start_lat, start_lon, end_lat, end_lon, K=3):
-    """Endpoint chính: nhận toạ độ start/end, trả về K đường đi."""
-    nodes, adj = load_graph()
+def find_paths(start_lat, start_lon, end_lat, end_lon, K=3, departure_hour=None):
+    """Endpoint chính: nhận toạ độ start/end, trả về K đường đi bằng A* hai chiều (hỗ trợ lọc theo giờ)."""
+    nodes, adj, adj_rev = load_graph(departure_hour=departure_hour)
     if not nodes:
         return []
 
@@ -205,7 +298,7 @@ def find_paths(start_lat, start_lon, end_lat, end_lon, K=3):
     if start is None or goal is None or start == goal:
         return []
 
-    paths = penalty_k_paths(nodes, adj, start, goal, K=K)
+    paths = penalty_k_paths(nodes, adj, adj_rev, start, goal, K=K)
     result = []
     for rank, p in enumerate(paths, start=1):
         dist = path_distance_km(adj, p)

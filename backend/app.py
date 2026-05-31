@@ -1,16 +1,29 @@
-"""Flask app: định nghĩa các REST endpoint cho frontend."""
-from flask import Flask, jsonify, request
+"""Flask app: định nghĩa các REST endpoint cho frontend và phục vụ file tĩnh."""
+import os
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
 import database
 import graph
 
-app = Flask(__name__)
+# Chỉ định thư mục frontend làm static_folder
+frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+app = Flask(__name__, static_folder=frontend_dir, static_url_path="")
 CORS(app)
 
-# Auto-migrate schema (thêm road_status, is_oneway nếu DB cũ chưa có)
+# Nạp dữ liệu đồ thị khi khởi chạy ứng dụng
 database.init_schema()
 
+
+@app.route("/")
+def index():
+    return send_from_directory(frontend_dir, "index.html")
+
+
+@app.route("/map")
+@app.route("/map/")
+def map_page():
+    return send_from_directory(frontend_dir, "map.html")
 
 @app.get("/api/graph")
 def api_graph():
@@ -25,15 +38,19 @@ def api_find_path():
     body = request.get_json(silent=True) or {}
     start = body.get("start") or {}
     end = body.get("end") or {}
+    departure_hour = body.get("departure_hour")
+    
     try:
         s_lat = float(start["lat"])
         s_lon = float(start["lon"])
         e_lat = float(end["lat"])
         e_lon = float(end["lon"])
+        if departure_hour is not None:
+            departure_hour = int(departure_hour)
     except (KeyError, TypeError, ValueError):
-        return jsonify({"error": "Thiếu hoặc sai định dạng start/end"}), 400
+        return jsonify({"error": "Thiếu hoặc sai định dạng start/end/departure_hour"}), 400
 
-    paths = graph.find_paths(s_lat, s_lon, e_lat, e_lon, K=3)
+    paths = graph.find_paths(s_lat, s_lon, e_lat, e_lon, K=3, departure_hour=departure_hour)
     return jsonify({"paths": paths})
 
 
@@ -103,6 +120,22 @@ def api_traffic_demo():
     n_oneway = int(body.get("n_oneway", 35))
     changes = database.demo_special_states(n_flooded, n_closed, n_oneway)
     return jsonify({"changes": changes})
+
+
+@app.post("/api/traffic/schedule/update")
+def api_traffic_schedule_update():
+    """Cập nhật danh sách lịch trình tắc đường/cấm đường theo giờ của một cạnh."""
+    body = request.get_json(silent=True) or {}
+    n1 = body.get("node1_id")
+    n2 = body.get("node2_id")
+    schedules = body.get("schedules")
+    if not n1 or not n2 or schedules is None:
+        return jsonify({"error": "node1_id, node2_id và schedules là bắt buộc"}), 400
+
+    success = database.update_edge_schedules(n1, n2, schedules)
+    if success:
+        return jsonify({"ok": True})
+    return jsonify({"error": "Không tìm thấy cạnh cần cập nhật"}), 404
 
 
 if __name__ == "__main__":
