@@ -1,5 +1,10 @@
 """Flask app: định nghĩa các REST endpoint cho frontend và phục vụ file tĩnh."""
 import os
+import sys
+
+# Đảm bảo thư mục backend nằm trong sys.path để Vercel import được các module local
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
