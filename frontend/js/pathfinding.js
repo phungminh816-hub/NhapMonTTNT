@@ -1,6 +1,6 @@
 // Gọi API tìm đường và vẽ 3 đường lên bản đồ.
 
-const PATH_COLORS = ["#2563eb", "#dc2626", "#16a34a"];
+const PATH_COLORS = ["#2563eb", "#dc2626", "#8b4513"];
 
 APP.departureHour = 12;
 

@@ -89,7 +89,7 @@ button#reset-btn {
 
 .result-item.path-0 { background: #dbeafe; }
 .result-item.path-1 { background: #fee2e2; }
-.result-item.path-2 { background: #dcfce7; }
+.result-item.path-2 { background: #f5e6d3; }
 
 .result-item.active {
     border-color: #111;
@@ -110,7 +110,7 @@ button#reset-btn {
 
 .result-item.path-0 .badge { background: #2563eb; }
 .result-item.path-1 .badge { background: #dc2626; }
-.result-item.path-2 .badge { background: #16a34a; }
+.result-item.path-2 .badge { background: #8b4513; }
 
 .result-item .streets {
     margin-top: 6px;

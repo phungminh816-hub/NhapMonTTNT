@@ -872,7 +872,7 @@ add_para(doc,
 add_code(doc,
 """const PATH_COLORS = [\"#2563eb\",   // xanh dương — đường 1 (tối ưu)
                        \"#dc2626\",   // đỏ          — đường 2
-                       \"#16a34a\"];  // xanh lá     — đường 3
+                       \"#8b4513\"];  // nâu          — đường 3
 
 const line = L.polyline(latlngs, {
     color: PATH_COLORS[idx % 3],
@@ -1093,7 +1093,7 @@ add_table(
     rows=[
         ["Đường 1 (tối ưu)", "#2563eb", "Xanh dương"],
         ["Đường 2", "#dc2626", "Đỏ"],
-        ["Đường 3", "#16a34a", "Xanh lá"],
+        ["Đường 3", "#8b4513", "Nâu"],
         ["Cạnh thông thoáng (traffic 1)", "#16a34a", "Xanh lá"],
         ["Cạnh chậm (traffic 2)", "#f59e0b", "Vàng cam"],
         ["Cạnh tắc (traffic 5)", "#dc2626", "Đỏ"],
